@@ -1,4 +1,4 @@
-# CUDA Learning Notes – [Date]
+# CUDA Learning Notes – [27-01-2025]
 
 ## 1. Understanding Memory Allocation
 - **Host vs Device Memory:**  
