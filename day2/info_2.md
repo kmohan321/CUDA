@@ -20,5 +20,5 @@ To assign the correct element of the matrix to each thread:
 
 ## explored some strategies to optimize the kernel
 - it includes increasing occupancy changing gridsize 
-- 
+- used cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, kernel, 0, 0);
 
