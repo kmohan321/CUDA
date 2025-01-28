@@ -1,9 +1,9 @@
 #include<stdio.h>
 #include<cuda.h>
 
-#define r 1000
-#define c 1000
-#define m 32
+#define r 10000
+#define c 10000
+#define m 16
 
 __global__ void matrix_add(int *m1, int *m2, int *m3){
       int idx = blockDim.x * blockIdx.x + threadIdx.x; //columns for  matrix
@@ -60,12 +60,8 @@ int main(){
   dim3 grid(blocks_x,blocks_y);
   dim3 blocksize(m,m);
   
-  // just for checking error 
-  cudaError_t err = cudaGetLastError();
-  if (err != cudaSuccess) {
-      printf("CUDA error: %s\n", cudaGetErrorString(err));
-      return -1;
-  }
+  matrix_add<<<grid,blocksize>>>(m1,m2,m3);
+
   cudaMemcpy(mat3,m3,r*c*sizeof(int),cudaMemcpyDeviceToHost);
   printf("output matrix\n");
   for(int i =0; i<6; i++){
