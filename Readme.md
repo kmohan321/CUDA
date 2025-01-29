@@ -8,3 +8,6 @@
 
 ## Day 3 - Matrix Multiplication and Relu implementation
 [Read more](day3/info_mul.md)
+
+## Day 4 - Vector Dot Product
+[Read more](day4/info_dot.md)
