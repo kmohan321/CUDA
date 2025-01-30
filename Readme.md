@@ -11,3 +11,6 @@
 
 ## Day 4 - Vector Dot Product
 [Read more](day4/info_dot.md)
+
+## Day 5 - Prefix Sum
+[Read more](day5/info_prefix.md)
