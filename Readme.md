@@ -17,3 +17,6 @@
 
 ## Day 6 - tiled Matrix Multiplication
 [Read more](day6/info_tile.md)
+
+## Day 7 - Lightning Attention implementation
+[Read more](day7/info_LA.md)
