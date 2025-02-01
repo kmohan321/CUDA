@@ -14,3 +14,6 @@
 
 ## Day 5 - Prefix Sum
 [Read more](day5/info_prefix.md)
+
+## Day 6 - tiled Matrix Multiplication
+[Read more](day6/info_tile.md)
