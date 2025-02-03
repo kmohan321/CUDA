@@ -23,3 +23,6 @@
 
 ## Day 8 - Softmax implementation with parallel reduction
 [Read more](day8/info_soft.md)
+
+## Day 9 - Matrix Transpose
+[Read more](day9/info_mt.md)
