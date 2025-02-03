@@ -20,3 +20,6 @@
 
 ## Day 7 - Lightning Attention implementation
 [Read more](day7/info_LA.md)
+
+## Day 8 - Softmax implementation with parallel reduction
+[Read more](day8/info_soft.md)
