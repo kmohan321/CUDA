@@ -26,3 +26,6 @@
 
 ## Day 9 - Matrix Transpose
 [Read more](day9/info_mt.md)
+
+## Day 10 - Naive Conv2d
+[Read more](day10/info_conv2d.md)
