@@ -29,3 +29,6 @@
 
 ## Day 10 - Naive Conv2d
 [Read more](day10/info_conv2d.md)
+
+## Day 11 - Optimised Softmax
+[Read more](day11/info_soft_op.md)
