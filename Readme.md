@@ -32,3 +32,6 @@
 
 ## Day 11 - Optimised Softmax
 [Read more](day11/info_soft_op.md)
+
+## Day 12 - Linear Layer
+[Read more](day12/info_linear.md)
