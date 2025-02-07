@@ -35,3 +35,6 @@
 
 ## Day 12 - Linear Layer
 [Read more](day12/info_linear.md)
+
+## Day 13 - Layer norm
+[Read more](day13/info_ln.md)
