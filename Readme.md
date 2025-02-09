@@ -38,3 +38,6 @@
 
 ## Day 13 - Layer norm
 [Read more](day13/info_ln.md)
+
+## Day 14 - Linear Layer backpropogation
+[Read more](day14/info_linear_back.md)
