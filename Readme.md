@@ -41,3 +41,6 @@
 
 ## Day 14 - Linear Layer backpropogation
 [Read more](day14/info_linear_back.md)
+
+## Day 15 - Softmax with cross entropy 
+[Read more](day15/info_sc.md)
