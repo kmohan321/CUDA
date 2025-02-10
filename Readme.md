@@ -44,3 +44,6 @@
 
 ## Day 15 - Softmax with cross entropy 
 [Read more](day15/info_sc.md)
+
+## Day 16 - Self Attention part01
+[Read more](day16/info_md_qkv_proj.md)
