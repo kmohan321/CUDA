@@ -26,9 +26,9 @@ __global__ void gaussianBlur(unsigned char* input, unsigned char* output,
         int shared_height = BLOCK_SIZE + 2 * radius;
 
         if(idx<width && idy<height){
-            
+
         }
-        
+        //not completed will work tomorrow
 
                             }
 
