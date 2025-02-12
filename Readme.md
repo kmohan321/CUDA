@@ -47,3 +47,9 @@
 
 ## Day 16 - Self Attention part01
 [Read more](day16/info_md_qkv_proj.md)
+
+## Day 17 - KMeans Clustering and SGD
+[Read more](day17/info_kmeans.md)
+
+## Day 18 - Gelu Forward and Backward
+[Read more](day18/info_gelu.md)
