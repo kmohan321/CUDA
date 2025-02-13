@@ -53,3 +53,6 @@
 
 ## Day 18 - Gelu Forward and Backward
 [Read more](day18/info_gelu.md)
+
+## Day 19 - Game of Survival
+[Read more](day19/info_game.md)
