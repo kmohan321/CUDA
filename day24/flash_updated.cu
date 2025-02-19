@@ -30,7 +30,7 @@ __global__ void flash_attn(float *K, float *V, float *Q,float *O, float *l, floa
     int x = threadIdx.x;
 
     //shared memory for local values
-    float *local_max = S;  //B_r
+    float *local_max = S + B_r*B_c;  //B_r
     float *local_sum = local_max + B_r; //B_r
     float *row_max = local_sum + B_r;
     float *row_sum = row_max + B_r;
@@ -65,14 +65,13 @@ __global__ void flash_attn(float *K, float *V, float *Q,float *O, float *l, floa
                 S_ij +=  q[row*d + common] * k[col*d + common];
             }
             S[row * B_c + col] = scale * S_ij;
-            __syncthreads();
 
             //computing the local max and local sum
             if(col==0){
               float local_mij = -INFINITY;
               float local_lij = 0.0f;
               for (int common = 0; common <B_c; common++){
-                float curr_value = S[ row * B_c + common];
+                float curr_value = S[row * B_c + common];
                 if(curr_value > local_mij){
                   local_lij = local_lij * expf(local_mij - curr_value);
                   local_mij = curr_value;
@@ -81,32 +80,29 @@ __global__ void flash_attn(float *K, float *V, float *Q,float *O, float *l, floa
               }
             local_max[row] = local_mij;
             local_sum[row] = local_lij;
+
+            prev_max[row] = m[batch_idx * (h*s) + head_idx * s + B_r * i + row];
+            prev_sum[row] = l[batch_idx * (h*s) + head_idx * s + B_r * i + row]; 
+            row_max[row] = max(prev_max[row],local_max[row]);
+            row_sum[row] = expf(prev_max[row]- row_max[row]) * prev_sum[row] + expf(local_max[row] - row_max[row]) * local_sum[row];
             }
             __syncthreads();
 
-            //local values for each query 
-            if(col==0){
-              float l_i = l[batch_idx * (h*s) + head_idx * s + B_r * i + row]; 
-              float m_i = m[batch_idx * (h*s) + head_idx * s + B_r * i + row];
-              prev_max[row] = m_i;
-              prev_sum[row] = l_i;
-              row_max[row] = fmax(m_i,local_max[row]);
-              row_sum[row] = __expf(m_i- row_max[row]) * l_i + __expf(local_max[row] - row_max[row]) * local_sum[row];
-            }
-            __syncthreads();
             
             //computing the final output
             for(int c = col; c < d; c += B_c){
-              float local_sum = 0.0f;
+              float output_sum = 0.0f;
               for(int common = 0; common < B_c; common++){
-                local_sum += __expf(S[row * B_c + common] - row_max[row]) * v[common*d + c];
+
+                output_sum += expf(S[row * B_c + common] - row_max[row]) * v[common*d+ c];
               }
               int idx = batch_idx * (h*s*d) + head_idx * (s*d) + (B_r *i*d + row*d) + c;
-              O[idx] = local_sum /row_sum[row] + (O[idx] * __expf(prev_max[row] - row_max[row]) * prev_sum[row]) / row_sum[row];
+              O[idx] = output_sum /row_sum[row] + (O[idx] * expf(prev_max[row] - row_max[row]) * prev_sum[row]) / row_sum[row];
             }
+            
             if(col==0){
-              l[batch_idx * (h*s) + head_idx * s + B_r * i + x] = row_sum[row];
-              m[batch_idx * (h*s) + head_idx * s + B_r * i + x] = row_max[row];
+              l[batch_idx * (h*s) + head_idx * s + B_r * i + row] = row_sum[row];
+              m[batch_idx * (h*s) + head_idx * s + B_r * i + row] = row_max[row];
             }
             __syncthreads();
         }  
@@ -133,7 +129,7 @@ torch::Tensor fa_forward(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
   l = l.to(device);
   m = m.to(device);
 
-  const int smem_size = (2 * Bc * d + Br * d + Br * Bc) * sizeof(float);
+  const int smem_size = (2 * Bc * d + Br * d + Br * Bc + 6*Br) * sizeof(float);
   int max_sram_size;
   cudaDeviceGetAttribute(&max_sram_size, cudaDevAttrMaxSharedMemoryPerBlock, 0);
   printf("Max shared memory: %d, requested shared memory: %d \n", max_sram_size, smem_size);
