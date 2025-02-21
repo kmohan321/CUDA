@@ -64,3 +64,15 @@
 
 ## Day 22 - Flash Attention Forward
 [Read more](day22/info_flash.md)
+
+## Day 23 - Cublass
+[Read more](day23/info_cublass.md)
+
+## Day 24 - Flash Attention Forward Optimized
+[Read more](day24/info_updated_flash.md)
+
+## Day 25 - Prefix Sum (Kogge stone Algo)
+[Read more](day25/info_prefix_sum.md)
+
+## Day 26 - Layer Norm backward
+[Read more](day26/info_layer_norm_back.md)
