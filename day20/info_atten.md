@@ -1,6 +1,6 @@
-# CUDA Learning Notes – [Date]
+# CUDA Learning Notes – [15-02-25]
 
-## CUDA Learning - Day [X]
+## CUDA Learning - Day 20
 
 ### Implemented Basic Attention Mechanism in CUDA
 
