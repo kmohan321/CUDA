@@ -76,3 +76,6 @@
 
 ## Day 26 - Layer Norm backward
 [Read more](day26/info_layer_norm_back.md)
+
+## Day 27 - DDPM reverse and forward
+[Read more](day27/info_ddpm.md)
