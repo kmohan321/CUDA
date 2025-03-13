@@ -13,30 +13,27 @@ def online_softmax(
   
   row_id = tl.program_id(0);
   
+  # starting row
   X_ptr += row_id * stride;
-  Y_ptr += row_id * stride; # starting row
+  Y_ptr += row_id * stride; 
   
-  block_max = tl.full([blocksize],-float("inf"),dtype=tl.float32)
-  block_norm = tl.zeros([blocksize],dtype=tl.float32)
-
+  local_max = -float("inf")
+  local_norm = 0.0
   for i in range(0,N,blocksize):
     n_off = tl.arange(0,blocksize) + i 
     mask = n_off < N
     curr_value = tl.load(X_ptr + n_off, mask=mask,other=-float("inf"))
-    block_max = tl.maximum(block_max,curr_value)
-    block_norm = block_norm * tl.exp(block_max-curr_value)
-    block_norm += tl.exp(curr_value-block_max)
-    
-  global_max = tl.max(block_max,axis=0)
-  block_norm = block_norm * tl.exp(block_max-global_max)
-  global_norm = tl.sum(block_norm,axis=0)
+    new_local_max = tl.max(curr_value)
+    local_norm = local_norm * tl.exp(local_max - new_local_max) + tl.sum(tl.exp(curr_value-new_local_max),axis=0)
+    local_max = new_local_max #storing the current local max
   
+
   for i in range(0,N,blocksize):
     n_off = tl.arange(0,blocksize) + i
     mask = n_off < N 
     curr_value = tl.load(X_ptr + n_off, mask=mask)
-    softmax_value = tl.exp(curr_value-global_max)/global_norm
-    tl.store(Y_ptr + n_off,softmax_value,mask=mask)
+    softmax_values = tl.exp(curr_value-local_max) / local_norm
+    tl.store(Y_ptr + n_off,softmax_values,mask=mask)
     
 def softmax_triton(X):
     """Wrapper to call Triton kernel for row-wise softmax"""
@@ -46,15 +43,18 @@ def softmax_triton(X):
     grid = (B,)  # One block per row
     stride = X.stride(0)
 
-    online_softmax[grid](X, Y, N, stride, blocksize=1024)
+    online_softmax[grid](X, Y, N, stride, blocksize=128)
     return Y
 
 # Example Usage
-X = torch.randn(4, 10, device="cuda", dtype=torch.float32)
+X = torch.randn(2, 4, device="cuda", dtype=torch.float32)
 Y = softmax_triton(X)
-
+y_torch = torch.softmax(X,axis=1)
+print(torch.allclose(Y,y_torch,atol=1e-5))
+print((y_torch-Y).abs().max())
 print("Input:\n", X)
 print("Softmax Output:\n", Y)
+print(torch.sum(Y,axis=1))
 
     
   
