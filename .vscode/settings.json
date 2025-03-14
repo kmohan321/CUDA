@@ -1,0 +1,13 @@
+{
+  "files.associations": {
+    "*.md": "bat",
+    "*.cu": "cuda-cpp",
+    "cmath": "cpp",
+    "random": "cpp",
+    "limits": "cpp",
+    "utility": "cpp",
+    "xutility": "cpp",
+    "*.tcc": "cpp",
+    "ostream": "cpp"
+  }
+}

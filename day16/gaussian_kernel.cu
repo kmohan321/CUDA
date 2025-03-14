@@ -29,7 +29,7 @@ __global__ void gaussianBlur(unsigned char* input, unsigned char* output,
 
         }
         //not completed will work tomorrow
-
+        
                             }
 
 // Helper function to create Gaussian kernel

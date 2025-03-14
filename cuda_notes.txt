@@ -1,0 +1,11 @@
+### remember that threads in one direction will have same global ids(say x direction then
+in every blocks threads in x direction will have same indicies like 0,1,2,3..)
+
+### blockidx.x controls the row movement of the threads in x direction
+in more simple langauge the threads in x direction moves along the rows due to blockidx.x
+if it swapes then they move along the column direction 
+
+### in warps threads are stored with consecutive threadIdx.x as threadIdx.y managing rows
+and threads are given linear id -> x + y*blockdim.x where threadIdx.x -> x and threadIdx.y ->y
+
+

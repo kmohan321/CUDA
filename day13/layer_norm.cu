@@ -46,7 +46,7 @@ __global__ void layernorm_kernel(float *input, float *output, float *gamma, floa
     for (int stride = x; stride < FEATURE_DIM; stride += BLOCK_SIZE) {
         sum += input[stride + row * FEATURE_DIM];
     }
-    
+    __syncthreads();
     s_mean[x] = sum;
     __syncthreads();
 
@@ -59,13 +59,14 @@ __global__ void layernorm_kernel(float *input, float *output, float *gamma, floa
     }
 
     float mean = s_mean[0] / FEATURE_DIM;
+    __syncthreads();
 
     // variance time
     for (int stride = x; stride < FEATURE_DIM; stride += BLOCK_SIZE) {
         float diff = input[stride + row * FEATURE_DIM] - mean;
         temp += diff * diff;
     }
-
+    __syncthreads();
     s_var[x] = temp;
     __syncthreads();
 
@@ -78,6 +79,7 @@ __global__ void layernorm_kernel(float *input, float *output, float *gamma, floa
     }
 
     float variance = s_var[0] / FEATURE_DIM;
+    __syncthreads();
     float inv_std = 1.0f / sqrtf(variance + 1e-5f);
 
     // Normalizing 

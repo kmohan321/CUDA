@@ -2,7 +2,7 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 
-#define n 10
+#define n 24
 
 int main()
 {

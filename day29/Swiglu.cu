@@ -45,26 +45,17 @@ __global__ void matrix_mul(float *m1, float *m2, float *m3, int tile, int r, int
   }
 }
 
-__global__ void swish(float *input, float *output, int tile, int r, int c){
-
-  extern __shared__ float smem[];
-
-  int col = threadIdx.x + blockDim.x * blockIdx.x; //column index
-  int row = threadIdx.y + blockDim.y * blockIdx.y; //row index
-  int x = threadIdx.x;
-  int y = threadIdx.y;
-
-  if(row<r && col <c){
-      smem[x + y*tile] = input[row*c + col];
-  }
-  __syncthreads();
+__global__ void swish(float *input, float *output, int r, int c){
+  int col = threadIdx.x + blockDim.x * blockIdx.x;
+  int row = threadIdx.y + blockDim.y * blockIdx.y;
 
   if(row<r && col<c){
-    float curr_value = smem[x+y*tile]; 
-    output[row*c + col] = output[row*c + col] = curr_value * (1.0f / (1.0f + expf(-curr_value)));
+    float x = input[row*c + col];
+    float sigmoid = 1.0f / (1.0f + expf(-x));
+    output[row*c + col] = x * sigmoid;
   }
-
 }
+
 
 __global__ void swiglu(float *input1 ,float *input2, float *output, int r, int c){
 
@@ -77,9 +68,10 @@ __global__ void swiglu(float *input1 ,float *input2, float *output, int r, int c
 
 }
 
-void initialize_matrix(float *matrix, int size) {
+void initialize_matrix(float *matrix, int size,float value) {
   for (int i = 0; i < size; i++) {
-      matrix[i] = (float)rand() / (float)RAND_MAX;
+      // matrix[i] = (float)rand() / (float)RAND_MAX;
+      matrix[i] = value;
   }
 }
 
@@ -97,8 +89,8 @@ int main() {
     h_C = (float*)malloc(size_C);
     h_swiglu_out = (float*)malloc(size_C);
 
-    initialize_matrix(h_A, r * common);
-    initialize_matrix(h_B, common * c);
+    initialize_matrix(h_A, r * common,0.5f);
+    initialize_matrix(h_B, common * c,0.5f);
 
     cudaMalloc((void**)&d_A, size_A);
     cudaMalloc((void**)&d_B, size_B);
@@ -115,31 +107,51 @@ int main() {
     matrix_mul<<<gridDim, blockDim, sharedMemSize>>>(d_A, d_B, d_C, TILE_SIZE, r, c, common);
     cudaDeviceSynchronize();
 
-    float *input2;
-    float *d_c_ = (float*)malloc(r*c*sizeof(float));
-    cudaMemcpy(d_c_,d_C,r*c*sizeof(float),cudaMemcpyDeviceToHost); 
+    float *d_matrix_result;
+    cudaMalloc((void**)&d_matrix_result, size_C);
+    cudaMemcpy(d_matrix_result, d_C, size_C, cudaMemcpyDeviceToDevice);
     
-    swish<<<gridDim, blockDim, TILE_SIZE * TILE_SIZE * sizeof(float)>>>(d_C, d_C, TILE_SIZE, r, c);
+    float *swish_out;
+    cudaMalloc((void**)&swish_out , r*c*sizeof(float));
+
+    swish<<<gridDim, blockDim>>>(d_C, swish_out, r, c);
     cudaDeviceSynchronize();
 
-    cudaMalloc((void**)&input2,r*c*sizeof(float));
-    cudaMemcpy(input2,d_c_,r*c*sizeof(float),cudaMemcpyHostToDevice); 
-    swiglu<<<gridDim, blockDim>>>(input2, d_C, d_swiglu_out, r, c);
+    swiglu<<<gridDim, blockDim>>>(d_matrix_result, swish_out, d_swiglu_out, r, c);
     cudaDeviceSynchronize();
 
     cudaMemcpy(h_C, d_C, size_C, cudaMemcpyDeviceToHost);
     cudaMemcpy(h_swiglu_out, d_swiglu_out, size_C, cudaMemcpyDeviceToHost);
 
-    printf("Output of SwiGLU (first 5 values):\n");
+    // After matrix multiplication
+    cudaMemcpy(h_C, d_C, size_C, cudaMemcpyDeviceToHost);
+    printf("After matrix multiplication (first 5 values):\n");
+    for (int i = 0; i < 5; i++) {
+        printf("%f ", h_C[i]);
+    }
+    printf("\n");
+
+    // After swish
+    cudaMemcpy(h_C, d_C, size_C, cudaMemcpyDeviceToHost);
+    printf("After swish activation (first 5 values):\n");
+    for (int i = 0; i < 5; i++) {
+        printf("%f ", h_C[i]);
+    }
+    printf("\n");
+
+    // After swiglu (final output)
+    cudaMemcpy(h_swiglu_out, d_swiglu_out, size_C, cudaMemcpyDeviceToHost);
+    printf("Final SwiGLU output (first 5 values):\n");
     for (int i = 0; i < 5; i++) {
         printf("%f ", h_swiglu_out[i]);
     }
     printf("\n");
-
+    
     free(h_A);
     free(h_B);
     free(h_C);
     free(h_swiglu_out);
+    cudaFree(d_matrix_result);
     cudaFree(d_A);
     cudaFree(d_B);
     cudaFree(d_C);

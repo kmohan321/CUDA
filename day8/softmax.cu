@@ -2,8 +2,8 @@
 #include<cuda.h>
 
 #define BlockSize 32
-#define Batch 64
-#define VecDim 128
+#define Batch 1024
+#define VecDim 1024
 
 __global__ void softmax(float *input, float *output, float *max_array, float *sum_array,int blocky){
 
@@ -106,7 +106,7 @@ int main(){
     for(int i =0; i<Batch;i++){
       for(int j =0; j<VecDim;j++){
         input[j + i*VecDim] = (float)rand() / RAND_MAX;
-        printf("%.2f ",input[j + i*VecDim]);
+        // printf("%.2f ",input[j + i*VecDim]);
       }
       printf("\n");
     }
@@ -124,7 +124,7 @@ int main(){
     for(int i =0; i<Batch;i++){
       float sum = 0.0f;
       for(int j =0; j<VecDim;j++){
-        // printf("%.2f ",output[j+i*VecDim]);
+        printf("%.2f ",output[j+i*VecDim]);
         sum += output[j+i*VecDim];
       }
       printf("\nsum is %.2f \n",sum);
