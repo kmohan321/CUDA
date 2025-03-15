@@ -13,8 +13,6 @@
     }
 
 //rememeber inputs are 4d tensors -> (b,h,s,d)
-//B_r -> total elements in each query tile
-//B_c -> total elements in each key and value tile  
 __global__ void flash_attn(float *K, float *V, float *Q,float *O, float *l, float *m,
     int T_r, int T_c, int b, int h, int s, int d,int B_c, int B_r, float scale){
  
@@ -27,7 +25,8 @@ __global__ void flash_attn(float *K, float *V, float *Q,float *O, float *l, floa
 
     int batch_idx = blockIdx.x;
     int head_idx = blockIdx.y;
-    int x = threadIdx.x;
+    int x = threadIdx.x; // for B_r elements (total elements in each query tile)
+    // int y = threadIdx.y; // for B_c elements (total elements in each key and value tile)
 
     
     for(int j = 0 ; j < T_c; j++){
@@ -38,7 +37,6 @@ __global__ void flash_attn(float *K, float *V, float *Q,float *O, float *l, floa
             v[x*d + c] = V[batch_idx * (h*s*d) + head_idx * (s*d) + (B_c *j*d + x*d) + c];
         }
         __syncthreads();
-        
         for(int i = 0; i < T_r; i++){
             
             //loading the Q tiles
@@ -47,53 +45,58 @@ __global__ void flash_attn(float *K, float *V, float *Q,float *O, float *l, floa
             }
             __syncthreads();
             
-            //local values for each query 
+            //local values
             float l_i = l[batch_idx * (h*s) + head_idx * s + B_r * i + x]; 
             float m_i = m[batch_idx * (h*s) + head_idx * s + B_r * i + x];
 
-            //computing the dot product and max localvalue
-            float local_mij = -INFINITY;
+            //computing the dot product 
+            float S_ij = 0.0f;
             for(int l_row = 0; l_row < B_c; l_row++){
-                float S_ij = 0.0f;
                 for(int common = 0 ; common < d; common++){
                     S_ij +=  q[x*d + common] * k[l_row*d + common];
                 }
                 S[x * B_c + l_row] = scale * S_ij;
-                local_mij = fmax(local_mij,S_ij);
             }
             __syncthreads();
 
-            //local sum calculation
+
+            //performing the softmax
+            float local_mij = -INFINITY;
             float local_lij = 0.0f;
             for(int l_row = 0; l_row < B_c; l_row++){
                 float curr_value = S[ x* B_c + l_row];
-                local_lij += __expf(curr_value-local_mij);
+                if(curr_value > local_mij){
+                    local_lij = local_lij * expf(local_mij - curr_value);
+                    local_mij = curr_value;
+                }
+                local_lij += expf(curr_value-local_mij);
             }
 
             float m_i_ = fmax(m_i,local_mij);
-            float l_i_ = __expf(m_i - m_i_) * l_i + __expf(local_mij - m_i_) * local_lij;
-            
+            float l_i_ = expf(m_i - m_i_) * l_i + expf(local_lij - m_i_)*local_lij;
+            __syncthreads();
+
             //computing the final output
-            for(int l_row = 0; l_row < d; l_row ++){
+            for(int l_row = 0; l_row < d; l_row++){
                 float local_sum = 0.0f;
-                for(int common = 0; common < B_c; common++){
-                    local_sum += __expf(S[x * B_c + common]-m_i_) * v [common*d + l_row];
+                for(int common =0; common < B_c; common++){
+                    local_sum += expf(S[x * B_c + common]-local_mij) * v [common*d + l_row];
                 }
                 int idx = batch_idx * (h*s*d) + head_idx * (s*d) + (B_r *i*d + x*d) + l_row;
-                O[idx] = local_sum /l_i_ + (O[idx] * __expf(m_i - m_i_) * l_i ) / l_i_;
+                O[idx] = local_sum * expf(local_mij - m_i_) / l_i_ + O[idx] * expf(m_i - m_i_) * l_i / l_i_;
             }
         
             l[batch_idx * (h*s) + head_idx * s + B_r * i + x] = l_i_;
             m[batch_idx * (h*s) + head_idx * s + B_r * i + x] = m_i_;
-            __syncthreads();
-        }  
+
+        }
+        __syncthreads();
     }
 }
-
-
+// Comment the below function to compile and run this file as executable
 torch::Tensor fa_forward(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
-  const int Bc = 32;
-  const int Br = 32;
+  const int Bc = 4;
+  const int Br = 4;
 
   int B = Q.size(0);
   int nh = Q.size(1);
@@ -104,6 +107,7 @@ torch::Tensor fa_forward(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
   int Tr = ceil((float)N / Br);
   float scale = 1.0 / sqrt(d);
 
+  // Initialize O, l, m to HBM
   auto O = torch::zeros_like(Q);
   auto l = torch::zeros({B,nh,N});
   auto m = torch::full({B,nh,N} ,-INFINITY);
@@ -118,6 +122,7 @@ torch::Tensor fa_forward(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
 
   dim3 grid_size(B, nh);     
   dim3 block_size(Br);  
+
 
   flash_attn<<<grid_size, block_size, smem_size>>>(
     K.data_ptr<float>(), V.data_ptr<float>(), Q.data_ptr<float>(), O.data_ptr<float>(), l.data_ptr<float>(), m.data_ptr<float>(),

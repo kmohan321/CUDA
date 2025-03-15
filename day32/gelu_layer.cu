@@ -34,7 +34,7 @@ __global__ void layernorm_gelu(float* __restrict__ input,
     //     sum_sq += __shfl_down_sync(0xFFFFFFFF, sum_sq, offset);
     // }
     for(int i = blockDim.x/2 ; i > 0 ; i/=2){
-      if(tid < i){
+      if(tid<i){
         mean_shared[tid] += mean_shared[tid + i];
         var_shared[tid] += var_shared[tid + i];
       }

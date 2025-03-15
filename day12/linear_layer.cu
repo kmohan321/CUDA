@@ -72,7 +72,7 @@ int main(){
           }
     }
 
-    for(int i =0; i<r; i++){  //shape -> //(r,c)
+    for(int i =0; i<common; i++){  //shape -> //(r,c)
           for(int j =0; j<c; j++){
                 mat4[j + c *i] = i*2;
           }

@@ -3,7 +3,7 @@
 
 #define blocksize 1024
 #define r 1024
-#define c 65536
+#define c 32768
 
 /*we will use each block to process entire row */
 __global__ void soft_opt(float *input, float *output){
@@ -12,8 +12,6 @@ __global__ void soft_opt(float *input, float *output){
     
     int x = threadIdx.x;
     int row = blockIdx.x; //for rows
-    
-    if(row>=r) return;
     
     float norm = 0.0f;
     float max_value = -INFINITY;
@@ -27,7 +25,6 @@ __global__ void soft_opt(float *input, float *output){
         }
         norm += expf(current_value-max_value);
     }
-    __syncthreads();
     s[x] = max_value;
     __syncthreads();
     
@@ -36,10 +33,10 @@ __global__ void soft_opt(float *input, float *output){
         if(x<stride){
             s[x] = fmax(s[x],s[x+stride]);
         }
-        __syncthreads();
     }
-    float global_maxvalue = s[0];
     __syncthreads();
+    float global_maxvalue = s[0];
+
     //so now we have global_maxvalue, time for corrected norm
     norm *= expf(max_value-global_maxvalue);
     s[x] = norm;
@@ -50,14 +47,13 @@ __global__ void soft_opt(float *input, float *output){
         if(x < stride){
             s[x] += s[x+stride];
         }
-        __syncthreads();
     }
-    float final_norm = s[0];
     __syncthreads();
+    float final_norm = s[0];
 
     //time for softmax
     for(int i = x; i<c; i += blockDim.x){
-        output[i + row*c] = expf(input[i + row*c]-global_maxvalue) / final_norm;
+        output[x + row*c] = expf(input[i + row*c]-global_maxvalue) / final_norm;
     }
     
 }
@@ -94,7 +90,7 @@ int main(){
     //   for(int j =0; j<c;j++){
     //     sum += output[j+i*c];
     //   }
-    //   printf("\nsum is %f \n",sum);
+    //   printf("\nsum is %.2f \n",sum);
     // }
 
     cudaFree(in);

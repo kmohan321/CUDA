@@ -73,41 +73,39 @@ __global__ void flash_attn(float *K, float *V, float *Q,float *O, float *l, floa
               for (int common = 0; common <B_c; common++){
                 float curr_value = S[row * B_c + common];
                 if(curr_value > local_mij){
+                  local_lij = local_lij * expf(local_mij - curr_value);
                   local_mij = curr_value;
                 }
+                local_lij += expf(curr_value - local_mij);
               }
-              local_max[row] = local_mij;
+            local_max[row] = local_mij;
+            local_sum[row] = local_lij;
 
-              for(int common =0; common <B_c;common++){
-                float curr_value = S[row * B_c + common];
-                S[row * B_c + common] = expf(curr_value - local_max[row]);
-                local_lij += S[row * B_c + common];
-              }
-              local_sum[row] = local_lij;
-
-              prev_max[row] = m[batch_idx * (h*s) + head_idx * s + B_r * i + row];
-              prev_sum[row] = l[batch_idx * (h*s) + head_idx * s + B_r * i + row]; 
-              row_max[row] = max(prev_max[row],local_max[row]);
-              row_sum[row] = expf(prev_max[row]- row_max[row]) * prev_sum[row] + expf(local_max[row] - row_max[row]) * local_sum[row];
+            prev_max[row] = m[batch_idx * (h*s) + head_idx * s + B_r * i + row];
+            prev_sum[row] = l[batch_idx * (h*s) + head_idx * s + B_r * i + row]; 
+            row_max[row] = max(prev_max[row],local_max[row]);
+            row_sum[row] = expf(prev_max[row]- row_max[row]) * prev_sum[row] + expf(local_max[row] - row_max[row]) * local_sum[row];
             }
             __syncthreads();
 
+            
             //computing the final output
             for(int c = col; c < d; c += B_c){
               float output_sum = 0.0f;
               for(int common = 0; common < B_c; common++){
-                output_sum += S[row * B_c + common] * v[common*d+ c];
+
+                output_sum += expf(S[row * B_c + common] - row_max[row]) * v[common*d+ c];
               }
               int idx = batch_idx * (h*s*d) + head_idx * (s*d) + (B_r *i*d + row*d) + c;
-              O[idx] = output_sum * expf(local_max[row] - row_max[row]) /row_sum[row] + (O[idx] * expf(prev_max[row] - row_max[row]) * prev_sum[row]) / row_sum[row];
+              O[idx] = output_sum /row_sum[row] + (O[idx] * expf(prev_max[row] - row_max[row]) * prev_sum[row]) / row_sum[row];
             }
             
             if(col==0){
               l[batch_idx * (h*s) + head_idx * s + B_r * i + row] = row_sum[row];
               m[batch_idx * (h*s) + head_idx * s + B_r * i + row] = row_max[row];
             }
-        }
-        __syncthreads();  
+            __syncthreads();
+        }  
     }
 }
 

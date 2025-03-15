@@ -6,7 +6,7 @@
 #define common 4
 #define threads 2 //threads per dimension of block
 #define tile 2
-/*block level tiling*/
+
 __global__ void matrix_mul(int *m1, int *m2, int *m3){
 
       int idx = threadIdx.x + blockDim.x * blockIdx.x; //column index

@@ -2,14 +2,14 @@
 #include<cuda.h>
 
 #define tile 4
-#define r 12
+#define r 10
 #define c 10
 #define blocksize 4
 
 __global__ void matrix_tranpose(float *input, float *output){
       
-      int idx = threadIdx.x + blockDim.x * blockIdx.x;
-      int idy = threadIdx.y + blockDim.y * blockIdx.y;
+      int idx = threadIdx.x + tile * blockIdx.x;
+      int idy = threadIdx.y + tile * blockIdx.y;
       int x = threadIdx.x;
       int y = threadIdx.y;
 
@@ -22,13 +22,11 @@ __global__ void matrix_tranpose(float *input, float *output){
       }
       __syncthreads();
 
-      int idx_t = threadIdx.x + blockDim.y * blockIdx.y; //now x threads are moving along the column dim of original matrix
-      int idy_t = threadIdx.y + blockDim.x * blockIdx.x;
       // transpose the matrix
-      if(idx_t < c && idy_t < r){ 
-        output[idy_t + idx_t*r] = s[x + y*tile];
+      if(idx < c && idy < r){
+        output[idx + idy*r] = s[y + x*tile];
       }
-}     
+}
 
 int main(){
 
