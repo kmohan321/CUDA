@@ -29,7 +29,7 @@ __global__ void MA_flock_simulation(const float *agents, float *agents_next, int
             float x_sq = x_distance * x_distance;
             float y_sq = y_distance * y_distance;
 
-            if((x_sq + y_sq) <= radius_sq ){
+            if((x_sq + y_sq) < radius_sq ){
                 v_nextx += agents[4*j + 2];
                 v_nexty += agents[4*j + 3];
                 neighbour_count += 1;
@@ -42,8 +42,8 @@ __global__ void MA_flock_simulation(const float *agents, float *agents_next, int
         float vavg_next_x = v_nextx/neighbour_count;
         float vavg_next_y = v_nexty/neighbour_count;
 
-        float updated_vx = agent_vx + 0.05f * (vavg_next_x - agent_vx);
-        float updated_vy = agent_vy + 0.05f * (vavg_next_y - agent_vy);
+        updated_vx = agent_vx + 0.05f * (vavg_next_x - agent_vx);
+        updated_vy = agent_vy + 0.05f * (vavg_next_y - agent_vy);
     }
 
     float updated_x = updated_vx + agent_x;
@@ -59,7 +59,7 @@ __global__ void MA_flock_simulation(const float *agents, float *agents_next, int
 void solve(const float* agents, float* agents_next, int N) {
 
     int blocksize = 256;
-    int grid = N + 256-1 / 256;
+    int grid = (N + 256-1 )/ 256;
 
     MA_flock_simulation<<<grid,blocksize>>>(agents, agents_next, N);
     
