@@ -61,11 +61,11 @@ extern "C" void solution(const float* input_matrix, const float* weight_matrix, 
 
 }
 
-__global__ void layernorm(const float *X, const float *gamma, const float *beta, float eps, float *Y, int f, int d1, int d2, int B,int N ){
+__global__ void layernorm(const float *X, const float *gamma, const float *beta, float eps, float *Y,int B,int N ){
 
     int row = blockIdx.x;
     int x = threadIdx.x;
-    int batch_offset = row * f *d1 *d2;
+    int batch_offset = row * N;
 
     if(row >= B) return;
     extern __shared__ float smem[];
@@ -81,13 +81,16 @@ __global__ void layernorm(const float *X, const float *gamma, const float *beta,
     }
     s1_shared[x] = sum;
     s2_shared[x] = sq_sum;
+    __syncthreads();
 
     for(int i = blockDim.x/2; i > 0; i/=2){
         if(x < i){
             s1_shared[x] += s1_shared[x+i];
+            s2_shared[x] += s2_shared[x+i];
         }
         __syncthreads();
     }
+
     float mean = s1_shared[0]/N;
     float variance = (s2_shared[0] / N) - mean *mean;
     float r_variance = 1.0f / (sqrtf(variance + eps));
@@ -97,7 +100,6 @@ __global__ void layernorm(const float *X, const float *gamma, const float *beta,
         Y[batch_offset + i] = out;
     }
 
-
 }
 
 // Note: X, gamma, beta, Y are all device pointers to float32 arrays
@@ -105,11 +107,11 @@ extern "C" void solution(const float* X, const float* gamma, const float* beta, 
 
     int M = B;
     int N =  F*D1*D2;
-    int threads = 256;
-    dim3 blocksize(256);
     float eps = 1e-5;
+    int threads = 256;
+    dim3 blocksize(threads);
     dim3 grid(M);
-    int smem_size = 2* threads *threads *sizeof(float);
-    layernorm<<< grid, blocksize, smem_size>>>(X,gamma,beta,eps,Y,F,D1,D2,B,N);
+    int smem_size = 2* threads *sizeof(float);
+    layernorm<<< grid, blocksize, smem_size>>>(X,gamma,beta,eps,Y,B,N);
 
 }
