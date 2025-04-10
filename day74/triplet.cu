@@ -27,7 +27,7 @@ __global__ void Triplet_Loss (const float*anchor, const float*positive, const fl
         //reduction time
         for(int i = blockDim.x/2; i>0; i /=2){
             if(idx<i){
-                smem1[idx] += smem2[idx+i];
+                smem1[idx] += smem1[idx+i];
                 smem2[idx] += smem2[idx+i];
             }
             __syncthreads();
@@ -37,15 +37,49 @@ __global__ void Triplet_Loss (const float*anchor, const float*positive, const fl
         float d2 = sqrtf(smem2[0]);
 
         if(idx==0){
-
+            float value = d1 - d2 + margin;
+            loss[batch] = fmaxf(0,value);
         }
 
-        
+}
 
+__global__ void block_sum(float *block_sum, float *loss, int B){
+    int idx = threadIdx.x;
 
+    extern __shared__ float smem[];
+    float local_sum = 0.0f;
+    for(int i = idx; i<B; i+=blockDim.x){
+        local_sum += block_sum[i];
+    }
+
+    smem[idx] = local_sum;
+    for(int i = blockDim.x/2; i>0; i /=2){
+    if(idx<i){
+        smem[idx] += smem[idx+i];
+    }
+    __syncthreads();
+    }
+    
+    if(idx==0){
+        float sum = smem[0];
+        *loss = sum/B;
+    }
+    
 }
 
 
 // Note: anchor, positive, negative, loss are all device pointers to float32 arrays
 extern "C" void solution(const float* anchor, const float* positive, const float* negative, float* loss, size_t B, size_t E, float margin) {    
+
+    int threads = 1024;
+    dim3 blocksize(threads);
+    dim3 grid(B);
+    int smem_size = 2*threads*sizeof(float);
+    int smem_size2 = threads * sizeof(float);
+
+    float *d_avg;
+    cudaMalloc((void**)&d_avg , B*sizeof(float));
+    Triplet_Loss<<<grid,blocksize,smem_size>>>(anchor,positive,negative,d_avg, B,E,margin);
+    
+    block_sum<<<1,blocksize,smem_size2>>>(d_avg,loss,B);
 }
